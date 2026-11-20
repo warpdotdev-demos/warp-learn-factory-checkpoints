@@ -1,0 +1,29 @@
+schemaVersion: v1alpha2
+name: Markdown App Factory
+alias: markdown-app-factory
+repositories:
+  - owner: YOUR_GITHUB_ORG
+    name: my-markdown-app
+agentDefaults:
+  model: glm-5.3-fireworks
+  runner: default
+blueprint:
+  worker: foreman
+  start:
+    to: implement
+  stages:
+    implement:
+      worker: builder
+      inputs: |-
+        request: the requester's ask in its exact words, with links and attachments.
+      outputs: |-
+        pr: the pull request that was opened or updated.
+      prompt:
+        file: stages/implement.md
+      to: handoff
+    handoff:
+      worker: foreman
+      inputs: |-
+        report: the builder's result, summary, and links.
+      prompt: Deliver the PR to the requester.
+      to: end

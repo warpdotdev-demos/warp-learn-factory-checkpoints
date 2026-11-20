@@ -1,0 +1,62 @@
+schemaVersion: v1alpha2
+name: Markdown App Factory
+alias: markdown-app-factory
+repositories:
+  - owner: YOUR_GITHUB_ORG
+    name: my-markdown-app
+agentDefaults:
+  model: glm-5.3-fireworks
+  runner: default
+blueprint:
+  worker: foreman
+  start:
+    to: triage
+  stages:
+    triage:
+      worker: builder
+      inputs: |-
+        request: the requester's ask in its exact words, with links and attachments.
+      outputs: |-
+        goal: answer, change, or unclear.
+        issue: the issue URL, or the decision that the work needs no issue.
+        complexity: the assessed size, and any behavior choices left open.
+        spec: whether a spec is needed, and why.
+      prompt:
+        file: stages/triage.md
+      to:
+        - stage: spec
+          when: A spec is needed, or the requester asked for one.
+        - stage: implement
+          when: The goal is a change, and no spec is needed.
+        - stage: handoff
+          when: Otherwise. The request was answer-only, or is unclear and waiting on the requester.
+    spec:
+      worker: builder
+      inputs: |-
+        request: the requester's ask in its exact words, with links and attachments.
+      outputs: |-
+        spec_pr: the draft pull request holding the committed spec.
+        decisions: the choices the requester made, and the assumptions recorded.
+      prompt:
+        file: stages/spec.md
+      to:
+        - stage: implement
+          when: The requester approved the spec.
+        - stage: spec
+          when: The requester gave feedback on the spec. Revise it on the same branch and pull request.
+    implement:
+      worker: builder
+      inputs: |-
+        triage: the triage outputs, with the request they came from.
+        spec: the approved spec pull request, when there is one.
+      outputs: |-
+        pr: the pull request that was opened or updated.
+      prompt:
+        file: stages/implement.md
+      to: handoff
+    handoff:
+      worker: foreman
+      inputs: |-
+        report: the builder's result, summary, and links.
+      prompt: Deliver the PR to the requester.
+      to: end
